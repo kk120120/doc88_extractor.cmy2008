@@ -38,7 +38,6 @@ jobs:
         Write-Host "Extracting JRE..."
         Expand-Archive -Path $outputPath -DestinationPath . -Force
         
-        # Rename JDK directory to jre
         $jdkDir = Get-ChildItem -Directory -Filter "*jdk*" | Select-Object -First 1
         if ($jdkDir) {
             Rename-Item -Path $jdkDir.FullName -NewName "jre"
@@ -55,58 +54,52 @@ jobs:
         pyinstaller --clean --noconfirm main_portable.spec
 
     - name: Create launcher script
-      shell: powershell
+      shell: cmd
       run: |
-        $launcherContent = @"
-@echo off
-chcp 65001 >nul
-title doc88_extractor
-cd /d "%~dp0"
-
-REM Set up bundled JRE
-if exist "jre" (
-    echo Using bundled Java...
-    set "JAVA_HOME=%~dp0jre"
-    set "PATH=%JAVA_HOME%\bin;%PATH%"
-)
-
-REM Run the main program
-doc88_extractor.exe
-
-if errorlevel 1 (
-    echo.
-    echo Program exited with error code: %errorlevel%
-    echo.
-    pause
-)
-"@
-        $launcherContent | Out-File -FilePath "dist/doc88_extractor/启动.bat" -Encoding ASCII
+        @echo off > dist\doc88_extractor\启动.bat
+        @echo chcp 65001 ^>nul >> dist\doc88_extractor\启动.bat
+        @echo title doc88_extractor >> dist\doc88_extractor\启动.bat
+        @echo cd /d "%%~dp0" >> dist\doc88_extractor\启动.bat
+        @echo. >> dist\doc88_extractor\启动.bat
+        @echo REM Set up bundled JRE >> dist\doc88_extractor\启动.bat
+        @echo if exist "jre" ( >> dist\doc88_extractor\启动.bat
+        @echo     echo Using bundled Java... >> dist\doc88_extractor\启动.bat
+        @echo     set "JAVA_HOME=%%~dp0jre" >> dist\doc88_extractor\启动.bat
+        @echo     set "PATH=%%JAVA_HOME%%\bin;%%PATH%%" >> dist\doc88_extractor\启动.bat
+        @echo ) >> dist\doc88_extractor\启动.bat
+        @echo. >> dist\doc88_extractor\启动.bat
+        @echo REM Run the main program >> dist\doc88_extractor\启动.bat
+        @echo doc88_extractor.exe >> dist\doc88_extractor\启动.bat
+        @echo. >> dist\doc88_extractor\启动.bat
+        @echo if errorlevel 1 ( >> dist\doc88_extractor\启动.bat
+        @echo     echo. >> dist\doc88_extractor\启动.bat
+        @echo     echo Program exited with error code: %%errorlevel%% >> dist\doc88_extractor\启动.bat
+        @echo     echo. >> dist\doc88_extractor\启动.bat
+        @echo     pause >> dist\doc88_extractor\启动.bat
+        @echo ) >> dist\doc88_extractor\启动.bat
 
     - name: Create README for package
-      shell: powershell
+      shell: cmd
       run: |
-        $readmeContent = @"
-# doc88_extractor - Portable Version
-
-## 系统要求
-- Windows 7 或更高版本 (64位)
-- 无需安装 Python 或 Java（已内置）
-
-## 使用方法
-1. 解压此文件夹到任意位置
-2. 双击运行 "启动.bat"（推荐）
-3. 或直接运行 "doc88_extractor.exe"
-
-## 内置组件
-- Python 3.10（已打包）
-- Microsoft Build of OpenJDK 17
-- 所有依赖项
-
-## 注意
-- 首次运行会自动下载 ffdec 工具
-- PDF 文件会保存在 "docs" 文件夹中
-"@
-        $readmeContent | Out-File -FilePath "dist/doc88_extractor/README.txt" -Encoding UTF8
+        @echo # doc88_extractor - Portable Version > dist\doc88_extractor\README.txt
+        @echo. >> dist\doc88_extractor\README.txt
+        @echo ## System Requirements >> dist\doc88_extractor\README.txt
+        @echo - Windows 7 or later (64-bit) >> dist\doc88_extractor\README.txt
+        @echo - No Python or Java installation required >> dist\doc88_extractor\README.txt
+        @echo. >> dist\doc88_extractor\README.txt
+        @echo ## Usage >> dist\doc88_extractor\README.txt
+        @echo 1. Extract this folder to any location >> dist\doc88_extractor\README.txt
+        @echo 2. Double-click "启动.bat" (Recommended) >> dist\doc88_extractor\README.txt
+        @echo 3. Or run "doc88_extractor.exe" directly >> dist\doc88_extractor\README.txt
+        @echo. >> dist\doc88_extractor\README.txt
+        @echo ## Built-in Components >> dist\doc88_extractor\README.txt
+        @echo - Python 3.10 (Packaged) >> dist\doc88_extractor\README.txt
+        @echo - Microsoft Build of OpenJDK 17 >> dist\doc88_extractor\README.txt
+        @echo - All dependencies included >> dist\doc88_extractor\README.txt
+        @echo. >> dist\doc88_extractor\README.txt
+        @echo ## Notes >> dist\doc88_extractor\README.txt
+        @echo - ffdec tool will be downloaded on first run >> dist\doc88_extractor\README.txt
+        @echo - PDF files will be saved in "docs" folder >> dist\doc88_extractor\README.txt
 
     - name: Package the distribution
       shell: powershell
