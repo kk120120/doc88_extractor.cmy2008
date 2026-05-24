@@ -2,10 +2,10 @@ name: Build doc88_extractor Portable (Windows x64)
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
     tags: [ 'v*' ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
@@ -111,7 +111,12 @@ if errorlevel 1 (
     - name: Package the distribution
       shell: powershell
       run: |
-        $version = if ('${{ github.ref_name }}'.StartsWith('v')) { '${{ github.ref_name }}' } else { "dev-$(Get-Date -Format 'yyyyMMdd')" }
+        $dateStr = Get-Date -Format 'yyyyMMdd'
+        if ('${{ github.ref_name }}'.StartsWith('v')) {
+            $version = '${{ github.ref_name }}'
+        } else {
+            $version = "dev-$dateStr"
+        }
         $archiveName = "doc88_extractor-portable-windows-x64-$version"
         
         Write-Host "Creating 7z archive..."
