@@ -2,6 +2,32 @@
 
 import os
 import sys
+import traceback
+
+# 全局错误处理函数
+def show_error_popup(title, message):
+    """显示错误弹窗，点击确定才退出"""
+    try:
+        if os.name == 'nt':
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(
+                0,
+                message,
+                title,
+                0x10 | 0x0  # MB_ICONERROR | MB_OK
+            )
+    except Exception:
+        pass  # 如果弹窗失败，至少打印到控制台
+
+# 全局异常捕获
+def global_exception_handler(exc_type, exc_value, exc_traceback):
+    error_msg = ''.join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+    print(f"\n=== 发生未处理的异常 ===\n{error_msg}")
+    show_error_popup("程序错误", f"发生错误：\n\n{error_msg}\n\n请截图此信息报告问题。")
+    sys.exit(1)
+
+# 设置全局异常处理
+sys.excepthook = global_exception_handler
 
 # 设置程序目录
 if getattr(sys, 'frozen', False):
@@ -497,54 +523,74 @@ class mode:
 
 
 if __name__ == "__main__":
-    update=Update(cfg2)
-    if not update.check_java():
-        input_break()
-        exit()
-    update.check_ffdec_update()
-    if cfg2.check_update:
-        update.check_update()
-    update.upgrade()
-    if not update.ffdec_configure():
-        print("ffdec 配置失败！")
-        print("请尝试：\n1. 检查 Java 是否正常并使用了推荐版本\n2. 检查 ffdec 是否安装正确且能正常运行")
-        if os.name == "nt":
-            print("3. 删除 ffdec 的配置文件（通常在 %APPDATA%\\JPEXS\\FFDec\\config.toml）后重试")
+    try:
+        update=Update(cfg2)
+        if not update.check_java():
+            error_msg = "Java 未找到或无法正常使用！\n\n请确保：\n1. 已安装 Java 17 或更高版本\n2. 或使用包含 JRE 的完整版本"
+            print(error_msg)
+            show_error_popup("Java 错误", error_msg)
+            input_break()
+            exit(1)
+        
+        update.check_ffdec_update()
+        if cfg2.check_update:
+            update.check_update()
+        update.upgrade()
+        
+        if not update.ffdec_configure():
+            error_msg = "ffdec 配置失败！\n\n请尝试：\n1. 检查 Java 是否正常\n2. 删除 ffdec 的配置文件后重试"
+            print(error_msg)
+            show_error_popup("配置错误", error_msg)
+            input_break()
+            exit(1)
+        
+        if cfg2.swf2svg:
+            print(
+                "使用 SVG 转换功能建议同时关闭 font-face 功能，否则将会导致字体丢失，若只需要 SVG 文件可关闭清理功能，文件将会生成到对应文档 ID 目录下的 svg 目录"
+            )
+            if not update.check_svg2pdf():
+                print("svg2pdf 工具安装失败，将继续以 SWF 到 PDF 方式转换。")
+                cfg2.swf2svg = False
+        
+        a = sys.argv
+        user = mode()
+        if "--debug" in a:
+            global debug
+            debug = True
         else:
-            print("3. 删除 ffdec 的配置文件后重试")
-        input_break()
-        exit()
-    if cfg2.swf2svg:
-        print(
-            "使用 SVG 转换功能建议同时关闭 font-face 功能，否则将会导致字体丢失，若只需要 SVG 文件可关闭清理功能，文件将会生成到对应文档 ID 目录下的 svg 目录"
-        )
-        if not update.check_svg2pdf():
-            print("svg2pdf 工具安装失败，将继续以 SWF 到 PDF 方式转换。")
-            cfg2.swf2svg = False
-    a = sys.argv
-    user = mode()
-    if "--debug" in a:
-        global debug
-        debug = True
-    else:
-        debug = False
-    if "-p" in a:
-        exe = user.pcode
-    elif "-d" in a:
-        exe = user.data
-    else:
-        exe = user.url
-    while True:
-        if exe():
-            update.gen_indexs()
-            if cfg2.clean:
-                try:
-                    clean(cfg2)
-                except NameError:
+            debug = False
+        if "-p" in a:
+            exe = user.pcode
+        elif "-d" in a:
+            exe = user.data
+        else:
+            exe = user.url
+        
+        while True:
+            try:
+                if exe():
+                    update.gen_indexs()
+                    if cfg2.clean:
+                        try:
+                            clean(cfg2)
+                        except NameError:
+                            pass
+                    if choose():
+                        pass
+                    else:
+                        exit()
+                else:
                     pass
-            if choose():
-                pass
-            else:
-                exit()
-        else:
-            pass
+            except Exception as e:
+                error_msg = f"执行过程中发生错误：\n\n{str(e)}\n\n{traceback.format_exc()}"
+                print(error_msg)
+                show_error_popup("运行错误", error_msg)
+                if not choose("是否继续使用程序？(Y/n): "):
+                    exit(1)
+    
+    except Exception as e:
+        error_msg = f"程序启动失败：\n\n{str(e)}\n\n{traceback.format_exc()}"
+        print(error_msg)
+        show_error_popup("启动错误", error_msg)
+        input_break()
+        exit(1)
